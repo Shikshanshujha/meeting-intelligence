@@ -1,3 +1,5 @@
+import posthog from "posthog-js";
+
 type AnalyticsEvent =
   | "brief_generated"
   | "meeting_completed"
@@ -6,11 +8,16 @@ type AnalyticsEvent =
   | "prospect_created"
   | "triage_flagged";
 
-export function trackEvent(_event: AnalyticsEvent, _properties?: Record<string, unknown>) {
+export function trackEvent(
+  event: AnalyticsEvent,
+  properties?: Record<string, unknown>
+) {
   if (typeof window === "undefined") return;
   if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
 
-  // Phase 7: wire PostHog client
-  void _event;
-  void _properties;
+  try {
+    posthog.capture(event, properties);
+  } catch {
+    // Analytics must never break the app
+  }
 }
