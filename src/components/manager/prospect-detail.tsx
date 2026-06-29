@@ -2,7 +2,10 @@ import { HealthDot } from "@/components/shared/health-dot";
 import { Panel } from "@/components/shared/panel";
 import { TriageBadge } from "@/components/shared/triage-badge";
 import { formatDate, formatMeetingType, formatStage } from "@/lib/data/formatters";
-import type { ManagerProspectDetail } from "@/lib/data/manager-prospect";
+import {
+  countMeetingsWithNotes,
+  type ManagerProspectDetail,
+} from "@/lib/data/manager-prospect";
 
 interface ProspectDetailProps {
   prospect: ManagerProspectDetail;
@@ -35,6 +38,7 @@ function MemoryList({
 
 export function ProspectDetail({ prospect }: ProspectDetailProps) {
   const { insight, memory_json: memory } = prospect;
+  const notesCount = countMeetingsWithNotes(prospect.meetings);
 
   return (
     <div className="space-y-6">
@@ -139,7 +143,8 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
 
       <section>
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Meeting history ({prospect.meetings.length})
+          Meeting history ({prospect.meetings.length}
+          {notesCount > 0 ? ` · ${notesCount} with notes` : ""})
         </h2>
 
         {prospect.meetings.length === 0 ? (
@@ -239,7 +244,9 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
                   </div>
                 ) : (
                   <p className="text-sm text-zinc-500">
-                    No notes yet — meeting not completed.
+                    {meeting.completed_at
+                      ? "No notes captured for this meeting."
+                      : "No notes yet — meeting not completed."}
                   </p>
                 )}
               </Panel>

@@ -18,6 +18,7 @@ export interface ManagerProspectMeetingRow {
   triage_status: TriageStatus | null;
   triage_explanation: string | null;
   rep_name: string;
+  has_notes: boolean;
   notes: {
     raw_notes: string;
     transcript: string | null;
@@ -47,6 +48,12 @@ export interface ManagerProspectDetail {
   } | null;
   meetings: ManagerProspectMeetingRow[];
   milestones: PipelineMilestoneRow[];
+}
+
+export function countMeetingsWithNotes(
+  meetings: ManagerProspectMeetingRow[]
+): number {
+  return meetings.filter((meeting) => meeting.has_notes).length;
 }
 
 export async function getManagerProspectDetail(
@@ -104,7 +111,7 @@ export async function getManagerProspectDetail(
         completed_at,
         triage_status,
         triage_explanation,
-        meeting_notes ( raw_notes, transcript, structured_summary )
+        rep:profiles!meetings_rep_id_fkey ( full_name )
       `
       )
       .eq("prospect_id", prospectId)
@@ -129,6 +136,35 @@ export async function getManagerProspectDetail(
 
   const meetings = meetingsResult.data ?? [];
   const milestones = milestonesResult.data ?? [];
+  const meetingIds = meetings.map((row) => row.id);
+
+  const notesByMeetingId = new Map<
+    string,
+    {
+      raw_notes: string;
+      transcript: string | null;
+      structured_summary: StructuredSummary;
+    }
+  >();
+
+  if (meetingIds.length > 0) {
+    const { data: notesRows, error: notesError } = await supabase
+      .from("meeting_notes")
+      .select("meeting_id, raw_notes, transcript, structured_summary")
+      .in("meeting_id", meetingIds);
+
+    if (notesError) {
+      console.error("getManagerProspectDetail notes:", notesError.message);
+    }
+
+    for (const row of notesRows ?? []) {
+      notesByMeetingId.set(row.meeting_id, {
+        raw_notes: row.raw_notes,
+        transcript: row.transcript,
+        structured_summary: row.structured_summary as StructuredSummary,
+      });
+    }
+  }
 
   return {
     id: prospect.id,
@@ -155,9 +191,8 @@ export async function getManagerProspectDetail(
         }
       : null,
     meetings: meetings.map((row) => {
-      const notesRow = Array.isArray(row.meeting_notes)
-        ? row.meeting_notes[0]
-        : row.meeting_notes;
+      const notesRow = notesByMeetingId.get(row.id) ?? null;
+      const rep = Array.isArray(row.rep) ? row.rep[0] : row.rep;
 
       return {
         id: row.id,
@@ -166,12 +201,13 @@ export async function getManagerProspectDetail(
         completed_at: row.completed_at ?? null,
         triage_status: row.triage_status as TriageStatus | null,
         triage_explanation: row.triage_explanation,
-        rep_name: ownerName,
+        rep_name: rep?.full_name ?? ownerName,
+        has_notes: Boolean(notesRow?.raw_notes?.trim()),
         notes: notesRow
           ? {
               raw_notes: notesRow.raw_notes,
               transcript: notesRow.transcript,
-              structured_summary: notesRow.structured_summary as StructuredSummary,
+              structured_summary: notesRow.structured_summary,
             }
           : null,
       };

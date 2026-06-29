@@ -3,7 +3,7 @@ import { LogOutButton } from "@/components/auth/log-out-button";
 import { ProspectDetail } from "@/components/manager/prospect-detail";
 import { AppShell } from "@/components/shared/app-shell";
 import { getSessionProfile } from "@/lib/auth/session";
-import { getManagerProspectDetail } from "@/lib/data/manager-prospect";
+import { getManagerProspectDetail, countMeetingsWithNotes } from "@/lib/data/manager-prospect";
 
 export const revalidate = 30;
 
@@ -29,11 +29,13 @@ export default async function ManagerProspectPage({ params }: ProspectPageProps)
     notFound();
   }
 
+  const notesCount = countMeetingsWithNotes(prospect.meetings);
+
   return (
     <AppShell
       role="manager"
       title={prospect.company}
-      subtitle={`${prospect.owner_name} · ${prospect.meetings.filter((m) => m.notes).length} meetings with notes`}
+      subtitle={`${prospect.owner_name} · ${notesCount} meeting${notesCount === 1 ? "" : "s"} with notes`}
       backHref="/manager"
       backLabel="Pipeline"
       actions={<LogOutButton />}
