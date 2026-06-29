@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/auth/demo-users";
+import { getSessionProfile } from "@/lib/auth/session";
 import type {
   DealHealth,
   MeetingType,
@@ -51,7 +52,13 @@ export interface ManagerProspectDetail {
 export async function getManagerProspectDetail(
   prospectId: string
 ): Promise<ManagerProspectDetail | null> {
-  const supabase = await createClient();
+  const profile = await getSessionProfile();
+
+  if (!profile || profile.role !== "manager") {
+    return null;
+  }
+
+  const supabase = createServiceClient();
 
   const { data: prospect, error } = await supabase
     .from("prospects")
@@ -76,16 +83,17 @@ export async function getManagerProspectDetail(
     .single();
 
   if (error || !prospect) {
-    console.error("getManagerProspectDetail:", error?.message);
+    console.error("getManagerProspectDetail prospect:", error?.message);
     return null;
   }
 
   const owner = Array.isArray(prospect.owner) ? prospect.owner[0] : prospect.owner;
+  const ownerName = owner?.full_name ?? "Unassigned";
   const insightRow = Array.isArray(prospect.manager_insights)
     ? prospect.manager_insights[0]
     : prospect.manager_insights;
 
-  const [{ data: meetings }, { data: milestones }] = await Promise.all([
+  const [meetingsResult, milestonesResult] = await Promise.all([
     supabase
       .from("meetings")
       .select(
@@ -96,7 +104,6 @@ export async function getManagerProspectDetail(
         completed_at,
         triage_status,
         triage_explanation,
-        rep:profiles!meetings_rep_id_fkey ( full_name ),
         meeting_notes ( raw_notes, transcript, structured_summary )
       `
       )
@@ -109,6 +116,20 @@ export async function getManagerProspectDetail(
       .order("occurred_at", { ascending: false }),
   ]);
 
+  if (meetingsResult.error) {
+    console.error("getManagerProspectDetail meetings:", meetingsResult.error.message);
+  }
+
+  if (milestonesResult.error) {
+    console.error(
+      "getManagerProspectDetail milestones:",
+      milestonesResult.error.message
+    );
+  }
+
+  const meetings = meetingsResult.data ?? [];
+  const milestones = milestonesResult.data ?? [];
+
   return {
     id: prospect.id,
     company: prospect.company,
@@ -120,7 +141,7 @@ export async function getManagerProspectDetail(
     stage: prospect.stage as ProspectStage,
     qualification_score: prospect.qualification_score,
     memory_json: (prospect.memory_json ?? {}) as ProspectMemory,
-    owner_name: owner?.full_name ?? "Unassigned",
+    owner_name: ownerName,
     updated_at: prospect.updated_at,
     insight: insightRow
       ? {
@@ -133,8 +154,7 @@ export async function getManagerProspectDetail(
             : [],
         }
       : null,
-    meetings: (meetings ?? []).map((row) => {
-      const rep = Array.isArray(row.rep) ? row.rep[0] : row.rep;
+    meetings: meetings.map((row) => {
       const notesRow = Array.isArray(row.meeting_notes)
         ? row.meeting_notes[0]
         : row.meeting_notes;
@@ -146,7 +166,7 @@ export async function getManagerProspectDetail(
         completed_at: row.completed_at ?? null,
         triage_status: row.triage_status as TriageStatus | null,
         triage_explanation: row.triage_explanation,
-        rep_name: rep?.full_name ?? "Rep",
+        rep_name: ownerName,
         notes: notesRow
           ? {
               raw_notes: notesRow.raw_notes,
@@ -156,7 +176,7 @@ export async function getManagerProspectDetail(
           : null,
       };
     }),
-    milestones: (milestones ?? []).map((row) => ({
+    milestones: milestones.map((row) => ({
       id: row.id,
       prospect_id: row.prospect_id,
       company: prospect.company,

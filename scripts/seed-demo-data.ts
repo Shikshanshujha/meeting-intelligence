@@ -11,6 +11,8 @@ import {
 } from "./seed-data/fixtures";
 import {
   buildExtraManagerInsights,
+  buildExtraMeetings,
+  buildExtraNotes,
   buildExtraProspects,
   buildLearningLeaps,
   buildPipelineMilestones,
@@ -93,9 +95,9 @@ async function main() {
     ...buildProspects(repId),
     ...buildExtraProspects(samId, rileyId),
   ];
-  const meetings = buildMeetings(repId);
+  const meetings = [...buildMeetings(repId), ...buildExtraMeetings(samId, rileyId)];
   const briefs = buildBriefs();
-  const notes = buildNotes();
+  const notes = [...buildNotes(), ...buildExtraNotes()];
   const insights = [
     ...buildManagerInsights(),
     ...buildExtraManagerInsights(),
@@ -106,6 +108,8 @@ async function main() {
 
   console.log("Resetting demo pipeline data…");
   await resetRepMeetings(supabase, repId);
+  await resetRepMeetings(supabase, samId);
+  await resetRepMeetings(supabase, rileyId);
   await removeOrphanProspects(supabase, repId, JORDAN_PROSPECT_IDS);
   await resetMilestones(supabase, allProspectIds);
 
@@ -132,7 +136,7 @@ async function main() {
 
   console.log("Seeded pipeline:");
   console.log(`  • ${prospects.length} prospects (Jordan + Sam + Riley)`);
-  console.log(`  • ${meetings.length} meetings for Jordan Lee`);
+  console.log(`  • ${meetings.length} meetings (Jordan + Sam + Riley)`);
   console.log(`  • ${milestones.length} pipeline milestones`);
   console.log(`  • ${insights.length} manager insights`);
   console.log(`  • Learning leaps + rep development areas`);

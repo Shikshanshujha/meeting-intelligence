@@ -144,7 +144,10 @@ export function ProspectDetail({ prospect }: ProspectDetailProps) {
 
         {prospect.meetings.length === 0 ? (
           <Panel>
-            <p className="text-sm text-zinc-500">No meetings recorded yet.</p>
+            <p className="text-sm text-zinc-500">
+              No meetings logged for this account yet. They appear here when the
+              rep completes a call and submits notes.
+            </p>
           </Panel>
         ) : (
           <div className="space-y-4">
