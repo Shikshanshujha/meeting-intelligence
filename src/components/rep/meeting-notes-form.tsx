@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Spinner } from "@/components/shared/spinner";
 import { trackEvent } from "@/lib/analytics/posthog";
 import { formatStage } from "@/lib/data/formatters";
 import type { ProspectMemory, ProspectStage } from "@/types";
@@ -182,9 +183,13 @@ export function MeetingNotesForm({
         <button
           type="submit"
           disabled={loading || !rawNotes.trim()}
-          className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 sm:w-auto"
+          className="btn-primary w-full sm:w-auto"
         >
-          {loading ? "Saving…" : "Mark meeting as completed"}
+          {loading ? (
+            <Spinner label="Processing notes…" />
+          ) : (
+            "Mark meeting as completed"
+          )}
         </button>
         <p className="text-xs text-zinc-500">
           Notes are required. This moves the meeting to past and updates the

@@ -3,11 +3,7 @@ import {
   buildBriefPrompt,
   parseBriefResponse,
 } from "@/lib/ai/prompts/brief";
-import {
-  buildTriagePrompt,
-  parseTriageResponse,
-  type TriageResult,
-} from "@/lib/ai/prompts/triage";
+import { type TriageResult } from "@/lib/ai/prompts/triage";
 import {
   buildBriefFromMemory,
   buildTriageFromMemory,
@@ -24,6 +20,13 @@ export interface GenerateBriefResult {
   gemini_configured: boolean;
   ai_model?: string;
   ai_error?: string;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 export async function generateBriefWorkflow(
@@ -69,7 +72,7 @@ export async function generateBriefWorkflow(
 
   const memory = (prospect.memory_json ?? {}) as ProspectMemory;
   const meetingType = meeting.type as MeetingType;
-  const enrichment = await enrichCompanyWebsite(prospect.website);
+  const enrichment = await withTimeout(enrichCompanyWebsite(prospect.website), 4500);
 
   const enrichedMemory: ProspectMemory = {
     ...memory,
@@ -80,7 +83,7 @@ export async function generateBriefWorkflow(
   };
 
   let brief: MeetingBrief;
-  let triage: TriageResult;
+  const triage = buildTriageFromMemory(prospect, enrichedMemory);
   let source: "ai" | "template" = "template";
   let aiModel: string | undefined;
   let aiError: string | undefined;
@@ -97,20 +100,8 @@ export async function generateBriefWorkflow(
       enrichment,
     });
 
-    const triagePrompt = buildTriagePrompt({
-      company: prospect.company,
-      industry: enrichment?.industry ?? prospect.industry,
-      memory: enrichedMemory,
-      enrichment,
-    });
-
-    const [briefResult, triageResult] = await Promise.all([
-      generateJsonWithMeta<unknown>(briefPrompt),
-      generateJsonWithMeta<unknown>(triagePrompt),
-    ]);
-
+    const briefResult = await generateJsonWithMeta<unknown>(briefPrompt);
     const parsedBrief = parseBriefResponse(briefResult.data);
-    const parsedTriage = parseTriageResponse(triageResult.data);
 
     brief =
       parsedBrief ??
@@ -119,9 +110,8 @@ export async function generateBriefWorkflow(
         meetingType,
         enrichedMemory
       );
-    triage = parsedTriage ?? buildTriageFromMemory(prospect, enrichedMemory);
     source = parsedBrief ? "ai" : "template";
-    aiModel = briefResult.model ?? triageResult.model;
+    aiModel = briefResult.model;
     aiError = parsedBrief
       ? undefined
       : briefResult.error ??
@@ -130,31 +120,31 @@ export async function generateBriefWorkflow(
           : "Gemini request failed");
   } else {
     brief = buildBriefFromMemory(prospect, meetingType, enrichedMemory);
-    triage = buildTriageFromMemory(prospect, enrichedMemory);
   }
 
   const serviceClient = createServiceClient();
 
-  const { error: triageError } = await serviceClient
-    .from("meetings")
-    .update({
-      triage_status: triage.status,
-      triage_explanation: triage.explanation,
-    })
-    .eq("id", meetingId);
+  const [{ error: triageError }, { error: briefError }] = await Promise.all([
+    serviceClient
+      .from("meetings")
+      .update({
+        triage_status: triage.status,
+        triage_explanation: triage.explanation,
+      })
+      .eq("id", meetingId),
+    serviceClient.from("briefs").upsert(
+      {
+        meeting_id: meetingId,
+        brief,
+        source,
+      },
+      { onConflict: "meeting_id" }
+    ),
+  ]);
 
   if (triageError) {
     throw triageError;
   }
-
-  const { error: briefError } = await serviceClient.from("briefs").upsert(
-    {
-      meeting_id: meetingId,
-      brief,
-      source,
-    },
-    { onConflict: "meeting_id" }
-  );
 
   if (briefError) {
     throw briefError;

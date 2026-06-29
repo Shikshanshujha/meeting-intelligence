@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Spinner } from "@/components/shared/spinner";
 import type { MeetingBrief } from "@/types";
 import { BriefCard } from "./brief-card";
 import { trackEvent } from "@/lib/analytics/posthog";
@@ -104,9 +105,15 @@ export function GenerateBriefSection({
             type="button"
             onClick={generateBrief}
             disabled={loading}
-            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60 sm:w-auto"
+            className="btn-primary mt-5 w-full sm:w-auto"
           >
-            {loading ? "Generating…" : stale ? "Refresh brief" : "Generate brief"}
+            {loading ? (
+              <Spinner label="Generating brief…" />
+            ) : stale ? (
+              "Refresh brief"
+            ) : (
+              "Generate brief"
+            )}
           </button>
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>

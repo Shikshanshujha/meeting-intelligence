@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { HealthDot } from "@/components/shared/health-dot";
 import { formatDate, type PipelineMilestoneRow } from "@/lib/data/queries";
 import type { DealHealth } from "@/types";
@@ -109,7 +110,21 @@ export function CompanyPipeline({ milestones }: CompanyPipelineProps) {
               <div className="divide-y divide-zinc-100 bg-white">
                 {companies.map(([company, items]) => (
                   <article key={company} className="p-4">
-                    <h4 className="mb-3 font-medium text-zinc-900">{company}</h4>
+                    <Link
+                      href={`/manager/prospects/${items[0].prospect_id}`}
+                      className="group mb-3 inline-flex items-center gap-1.5 font-medium text-zinc-900 transition hover:text-brand-600"
+                    >
+                      {company}
+                      <svg
+                        className="h-4 w-4 opacity-40 transition group-hover:translate-x-0.5 group-hover:opacity-100"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
                     <ol className="space-y-2">
                       {items
                         .sort(

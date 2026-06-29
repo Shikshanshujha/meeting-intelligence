@@ -4,8 +4,26 @@
 
 :root {
   color-scheme: light;
+  --bg-app: #f8fafc;
+  --border: #e2e8f0;
+  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.06);
 }
 
 body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  background: var(--bg-app);
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-60;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-brand-600/20 transition focus:border-brand-500 focus:ring-2;
+  }
 }

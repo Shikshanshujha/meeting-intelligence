@@ -5,10 +5,6 @@ import {
   mergeMemory,
 } from "@/lib/ai/fallbacks/templates";
 import {
-  buildManagerPrompt,
-  parseManagerResponse,
-} from "@/lib/ai/prompts/manager";
-import {
   buildMemoryPrompt,
   buildMergedMemory,
   parseMemoryResponse,
@@ -140,6 +136,8 @@ export async function processNotesWorkflow(
     structured_summary.pipeline_stage
   );
 
+  const now = new Date().toISOString();
+
   const { error: notesError } = await serviceClient.from("meeting_notes").upsert(
     {
       meeting_id: meetingId,
@@ -154,8 +152,6 @@ export async function processNotesWorkflow(
     throw new Error(`Notes save failed: ${notesError.message}`);
   }
 
-  const now = new Date().toISOString();
-
   const { error: memoryError } = await serviceClient
     .from("prospects")
     .update({
@@ -169,42 +165,37 @@ export async function processNotesWorkflow(
     throw new Error(`Memory update failed: ${memoryError.message}`);
   }
 
-  await invalidateProspectBriefs(serviceClient, prospect.id);
-
-  const { error: completeError } = await serviceClient
-    .from("meetings")
-    .update({
-      completed_at: now,
-      open_points: structured_summary.next_actions.slice(0, 5),
-    })
-    .eq("id", meetingId);
-
-  if (completeError) {
-    throw new Error(`Could not mark meeting complete: ${completeError.message}`);
-  }
-
-  const managerPrompt = buildManagerPrompt({
-    company: prospect.company,
-    memory,
-    qualificationScore: prospect.qualification_score ?? 50,
-    latestNotes: rawNotes,
-  });
-
-  let insight = buildManagerInsightFromMemory(
+  const insight = buildManagerInsightFromMemory(
     prospect.company,
     memory,
     prospect.qualification_score ?? 50
   );
 
-  if (isGeminiConfigured()) {
-    const aiInsight = await generateJson<unknown>(managerPrompt);
-    const parsedInsight = parseManagerResponse(aiInsight);
-    if (parsedInsight) insight = parsedInsight;
-  }
+  const milestoneLabel =
+    structured_summary.objections[0] ??
+    structured_summary.pain_points[0] ??
+    `Moved to ${nextStage.replace("_", " ")}`;
+  const tone =
+    nextStage === "rejected"
+      ? "negative"
+      : nextStage === "won"
+        ? "positive"
+        : structured_summary.sentiment === "negative"
+          ? "negative"
+          : structured_summary.sentiment === "positive"
+            ? "positive"
+            : "warning";
 
-  const { error: insightError } = await serviceClient
-    .from("manager_insights")
-    .upsert(
+  const [, completeResult, insightResult, milestoneResult] = await Promise.allSettled([
+    invalidateProspectBriefs(serviceClient, prospect.id),
+    serviceClient
+      .from("meetings")
+      .update({
+        completed_at: now,
+        open_points: structured_summary.next_actions.slice(0, 5),
+      })
+      .eq("id", meetingId),
+    serviceClient.from("manager_insights").upsert(
       {
         prospect_id: prospect.id,
         health: insight.health,
@@ -215,37 +206,34 @@ export async function processNotesWorkflow(
         updated_at: now,
       },
       { onConflict: "prospect_id" }
-    );
-
-  if (insightError) {
-    console.error("manager_insights upsert:", insightError.message);
-  }
-
-  try {
-    const milestoneLabel =
-      structured_summary.objections[0] ??
-      structured_summary.pain_points[0] ??
-      `Moved to ${nextStage.replace("_", " ")}`;
-    const tone =
-      nextStage === "rejected"
-        ? "negative"
-        : nextStage === "won"
-          ? "positive"
-          : structured_summary.sentiment === "negative"
-            ? "negative"
-            : structured_summary.sentiment === "positive"
-              ? "positive"
-              : "warning";
-
-    await serviceClient.from("pipeline_milestones").insert({
+    ),
+    serviceClient.from("pipeline_milestones").insert({
       prospect_id: prospect.id,
       occurred_at: now,
       label: milestoneLabel.slice(0, 80),
       next_step: structured_summary.next_actions[0] ?? null,
       tone,
-    });
-  } catch (milestoneError) {
-    console.error("pipeline_milestones insert:", milestoneError);
+    }),
+  ]);
+
+  if (completeResult.status === "rejected") {
+    throw new Error(`Could not mark meeting complete: ${completeResult.reason}`);
+  }
+
+  if (completeResult.value.error) {
+    throw new Error(
+      `Could not mark meeting complete: ${completeResult.value.error.message}`
+    );
+  }
+
+  if (insightResult.status === "fulfilled" && insightResult.value.error) {
+    console.error("manager_insights upsert:", insightResult.value.error.message);
+  }
+
+  if (milestoneResult.status === "rejected") {
+    console.error("pipeline_milestones insert:", milestoneResult.reason);
+  } else if (milestoneResult.value.error) {
+    console.error("pipeline_milestones insert:", milestoneResult.value.error.message);
   }
 
   return {

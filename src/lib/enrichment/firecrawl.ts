@@ -55,7 +55,7 @@ async function scrapeWithFirecrawl(url: string): Promise<EnrichmentData | null> 
         formats: ["markdown"],
         onlyMainContent: true,
       }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {

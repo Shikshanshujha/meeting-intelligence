@@ -15,12 +15,12 @@ export function RolePicker() {
   }
 
   return (
-    <div className="w-full max-w-md space-y-4">
+    <div className="w-full max-w-md space-y-3">
       <button
         type="button"
         onClick={() => continueAs("rep")}
         disabled={loading !== null}
-        className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-4 text-left shadow-sm transition hover:border-zinc-300 hover:shadow disabled:opacity-60"
+        className="flex w-full items-center justify-between rounded-2xl border border-[var(--border)] bg-white px-5 py-4 text-left shadow-card transition hover:border-brand-200 hover:shadow-md disabled:opacity-60"
       >
         <div>
           <p className="font-medium text-zinc-900">Sales Rep</p>
@@ -37,7 +37,7 @@ export function RolePicker() {
         type="button"
         onClick={() => continueAs("manager")}
         disabled={loading !== null}
-        className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-4 text-left shadow-sm transition hover:border-zinc-300 hover:shadow disabled:opacity-60"
+        className="flex w-full items-center justify-between rounded-2xl border border-[var(--border)] bg-white px-5 py-4 text-left shadow-card transition hover:border-brand-200 hover:shadow-md disabled:opacity-60"
       >
         <div>
           <p className="font-medium text-zinc-900">Sales Manager</p>

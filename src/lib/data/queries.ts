@@ -199,7 +199,7 @@ export async function getManagerDashboard(
 ): Promise<ManagerDashboardData> {
   const range = getDateRange(rangeKey);
   const allProspects = await getManagerPipeline();
-  const allMilestones = await getPipelineMilestonesUnfiltered();
+  const allMilestones = await getPipelineMilestonesFromProspects(allProspects);
 
   const activeProspectIds = new Set(
     allMilestones
@@ -229,9 +229,10 @@ export async function getManagerDashboard(
   return { prospects, milestones, reps, learning };
 }
 
-async function getPipelineMilestonesUnfiltered(): Promise<PipelineMilestoneRow[]> {
+async function getPipelineMilestonesFromProspects(
+  prospects: ManagerProspectRow[]
+): Promise<PipelineMilestoneRow[]> {
   const supabase = await createClient();
-  const prospects = await getManagerPipeline();
   const companyMap = new Map(prospects.map((p) => [p.id, p.company]));
   const healthMap = new Map(
     prospects.map((p) => [p.id, p.insight?.health ?? null])

@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} min-h-screen bg-white font-sans antialiased text-zinc-900`}>
+      <body className={`${inter.variable} min-h-screen font-sans antialiased text-zinc-900`}>
         <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>
