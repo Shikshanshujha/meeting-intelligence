@@ -4,10 +4,10 @@ export const TIMELINE_GRANULARITY_OPTIONS: {
   key: TimelineGranularity;
   label: string;
 }[] = [
-  { key: "week", label: "Week on week" },
-  { key: "month", label: "Month on month" },
-  { key: "quarter", label: "Quarter on quarter" },
-  { key: "year", label: "Year on year" },
+  { key: "week", label: "Weekly" },
+  { key: "month", label: "Monthly" },
+  { key: "quarter", label: "Quarterly" },
+  { key: "year", label: "Yearly" },
 ];
 
 export function parseTimelineGranularity(

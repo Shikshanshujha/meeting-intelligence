@@ -17,6 +17,11 @@ export interface ConversionTimelineData {
   totalLost: number;
 }
 
+interface ConversionEvent {
+  occurredAt: string;
+  outcome: "converted" | "lost";
+}
+
 function startOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -119,37 +124,42 @@ function formatBucketLabel(start: Date, granularity: TimelineGranularity) {
   }
 }
 
-function bucketCount(granularity: TimelineGranularity) {
-  switch (granularity) {
-    case "week":
-      return 12;
-    case "month":
-      return 12;
-    case "quarter":
-      return 8;
-    case "year":
-      return 5;
-  }
-}
-
-function generateBuckets(granularity: TimelineGranularity, now = new Date()): TimelineBucket[] {
-  const count = bucketCount(granularity);
-  let cursor = getBucketStart(now, granularity);
+function generateBucketsFromRange(
+  granularity: TimelineGranularity,
+  firstEventDate: Date,
+  now: Date
+): TimelineBucket[] {
+  let cursor = getBucketStart(firstEventDate, granularity);
+  const lastStart = getBucketStart(now, granularity);
   const buckets: TimelineBucket[] = [];
 
-  for (let i = 0; i < count; i++) {
+  while (cursor.getTime() <= lastStart.getTime()) {
     const end = getBucketEnd(cursor, granularity);
-    buckets.unshift({
+    buckets.push({
       label: formatBucketLabel(cursor, granularity),
       start: cursor.toISOString(),
       end: end.toISOString(),
       converted: 0,
       lost: 0,
     });
-    cursor = shiftBucketStart(cursor, granularity, -1);
+    cursor = shiftBucketStart(cursor, granularity, 1);
   }
 
   return buckets;
+}
+
+function currentPeriodBucket(
+  granularity: TimelineGranularity,
+  now = new Date()
+): TimelineBucket {
+  const start = getBucketStart(now, granularity);
+  return {
+    label: formatBucketLabel(start, granularity),
+    start: start.toISOString(),
+    end: getBucketEnd(start, granularity).toISOString(),
+    converted: 0,
+    lost: 0,
+  };
 }
 
 function assignToBucket(
@@ -181,7 +191,7 @@ export async function getConversionTimeline(
   }
 
   const supabase = createServiceClient();
-  const buckets = generateBuckets(granularity);
+  const now = new Date();
 
   const { data: prospects, error: prospectError } = await supabase
     .from("prospects")
@@ -192,7 +202,7 @@ export async function getConversionTimeline(
     console.error("getConversionTimeline prospects:", prospectError.message);
     return {
       granularity,
-      buckets,
+      buckets: [currentPeriodBucket(granularity, now)],
       totalConverted: 0,
       totalLost: 0,
     };
@@ -202,7 +212,7 @@ export async function getConversionTimeline(
   if (terminalProspects.length === 0) {
     return {
       granularity,
-      buckets,
+      buckets: [currentPeriodBucket(granularity, now)],
       totalConverted: 0,
       totalLost: 0,
     };
@@ -219,13 +229,14 @@ export async function getConversionTimeline(
     console.error("getConversionTimeline milestones:", milestoneError.message);
   }
 
-  const milestonesByProspect = new Map<string, typeof milestones>();
+  const milestonesByProspect = new Map<string, NonNullable<typeof milestones>>();
   for (const milestone of milestones ?? []) {
     const list = milestonesByProspect.get(milestone.prospect_id) ?? [];
     list.push(milestone);
     milestonesByProspect.set(milestone.prospect_id, list);
   }
 
+  const events: ConversionEvent[] = [];
   let totalConverted = 0;
   let totalLost = 0;
 
@@ -241,13 +252,26 @@ export async function getConversionTimeline(
       )[0];
     const occurredAt = terminalMilestone?.occurred_at ?? prospect.updated_at;
 
-    assignToBucket(buckets, occurredAt, outcome);
+    events.push({ occurredAt, outcome });
 
     if (outcome === "converted") {
       totalConverted += 1;
     } else {
       totalLost += 1;
     }
+  }
+
+  const firstEventDate = new Date(
+    Math.min(...events.map((event) => new Date(event.occurredAt).getTime()))
+  );
+
+  const buckets =
+    events.length > 0
+      ? generateBucketsFromRange(granularity, firstEventDate, now)
+      : [currentPeriodBucket(granularity, now)];
+
+  for (const event of events) {
+    assignToBucket(buckets, event.occurredAt, event.outcome);
   }
 
   return {
