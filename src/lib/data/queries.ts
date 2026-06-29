@@ -27,6 +27,7 @@ export interface RepMeetingRow {
   type: MeetingType;
   scheduled_at: string;
   completed_at: string | null;
+  meeting_link: string | null;
   triage_status: TriageStatus | null;
   triage_explanation: string | null;
   prospect: {
@@ -130,6 +131,7 @@ export async function getRepMeetings(repId: string): Promise<RepMeetingRow[]> {
       type,
       scheduled_at,
       completed_at,
+      meeting_link,
       triage_status,
       triage_explanation,
       prospect:prospects!inner (
@@ -158,6 +160,7 @@ export async function getRepMeetings(repId: string): Promise<RepMeetingRow[]> {
       type: row.type as MeetingType,
       scheduled_at: row.scheduled_at,
       completed_at: row.completed_at ?? null,
+      meeting_link: row.meeting_link ?? null,
       triage_status: row.triage_status as TriageStatus | null,
       triage_explanation: row.triage_explanation,
       prospect: prospect as RepMeetingRow["prospect"],

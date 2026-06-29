@@ -2,9 +2,11 @@ import Link from "next/link";
 import {
   formatDate,
   formatMeetingType,
+  isUpcoming,
   type RepMeetingRow,
 } from "@/lib/data/queries";
 import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
+import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
 import { TriageBadge } from "@/components/shared/triage-badge";
 
 interface NextUpCardProps {
@@ -36,6 +38,16 @@ export function NextUpCard({ meeting }: NextUpCardProps) {
         >
           Open meeting →
         </Link>
+        {isUpcoming(meeting.scheduled_at, meeting.completed_at) && (
+          <UpcomingMeetingActions
+            meetingId={meeting.id}
+            prospectCompany={meeting.prospect.company}
+            meetingType={meeting.type}
+            scheduledAt={meeting.scheduled_at}
+            meetingLink={meeting.meeting_link}
+            variant="dark"
+          />
+        )}
         <ScheduleMeetingForm
           prospectId={meeting.prospect.id}
           prospectCompany={meeting.prospect.company}

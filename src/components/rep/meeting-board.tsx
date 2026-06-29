@@ -7,6 +7,7 @@ import {
   type RepMeetingRow,
 } from "@/lib/data/queries";
 import { bucketPastMeetingsByWorkflow } from "@/lib/data/rep-meeting-buckets";
+import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
 import {
   mapProspectStageToWorkflow,
   WORKFLOW_STAGES,
@@ -104,6 +105,35 @@ function MeetingCard({
   compact?: boolean;
 }) {
   const workflow = mapProspectStageToWorkflow(meeting.prospect.stage);
+  const upcoming = isUpcoming(meeting.scheduled_at, meeting.completed_at);
+
+  if (highlight && upcoming) {
+    return (
+      <div className="rounded-xl border border-zinc-900 bg-white p-4 shadow-sm ring-1 ring-zinc-900/5">
+        <Link href={`/rep/meetings/${meeting.id}`} className="block">
+          <p className="font-medium text-zinc-900">{meeting.prospect.company}</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {formatMeetingType(meeting.type)} · {formatDate(meeting.scheduled_at)}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {formatStage(meeting.prospect.stage)} · {workflowLabel(workflow)}
+          </p>
+          {meeting.has_brief && (
+            <p className="mt-2 text-xs text-blue-700">Brief ready</p>
+          )}
+        </Link>
+        <div className="mt-4 border-t border-zinc-100 pt-4">
+          <UpcomingMeetingActions
+            meetingId={meeting.id}
+            prospectCompany={meeting.prospect.company}
+            meetingType={meeting.type}
+            scheduledAt={meeting.scheduled_at}
+            meetingLink={meeting.meeting_link}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Link

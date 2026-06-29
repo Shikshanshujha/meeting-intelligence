@@ -3,6 +3,7 @@ import { LogOutButton } from "@/components/auth/log-out-button";
 import { FollowUpPromptBanner } from "@/components/rep/follow-up-prompt-banner";
 import { MeetingDetailPanel } from "@/components/rep/meeting-detail-panel";
 import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
+import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
 import { AppShell } from "@/components/shared/app-shell";
 import { TriageBadge } from "@/components/shared/triage-badge";
 import { isGeminiConfigured } from "@/lib/ai/gemini";
@@ -14,6 +15,7 @@ import {
   getRepMeetingDetail,
   getRepMeetings,
   isMeetingPast,
+  isUpcoming,
 } from "@/lib/data/queries";
 import { deriveFollowUpPrompts } from "@/lib/data/rep-follow-up-prompts";
 
@@ -42,6 +44,7 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
     (prompt) => prompt.prospect_id === meeting.prospect_id
   );
   const isPast = isMeetingPast(meeting.scheduled_at, meeting.completed_at);
+  const isUpcomingMeeting = isUpcoming(meeting.scheduled_at, meeting.completed_at);
 
   return (
     <AppShell
@@ -52,17 +55,27 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
       backLabel="All meetings"
       actions={
         <>
-          <ScheduleMeetingForm
-            prospectId={meeting.prospect_id}
-            prospectCompany={meeting.prospect.company}
-            defaultMeetingType={
-              meeting.completed_at
-                ? meeting.type === "discovery"
-                  ? "demo"
-                  : meeting.type
-                : undefined
-            }
-          />
+          {isUpcomingMeeting ? (
+            <UpcomingMeetingActions
+              meetingId={meeting.id}
+              prospectCompany={meeting.prospect.company}
+              meetingType={meeting.type}
+              scheduledAt={meeting.scheduled_at}
+              meetingLink={meeting.meeting_link}
+            />
+          ) : (
+            <ScheduleMeetingForm
+              prospectId={meeting.prospect_id}
+              prospectCompany={meeting.prospect.company}
+              defaultMeetingType={
+                meeting.completed_at
+                  ? meeting.type === "discovery"
+                    ? "demo"
+                    : meeting.type
+                  : undefined
+              }
+            />
+          )}
           <LogOutButton />
         </>
       }
