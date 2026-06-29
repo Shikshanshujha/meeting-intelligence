@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/shared/spinner";
 import {
   clearCachedBrief,
@@ -91,6 +91,8 @@ function shouldAutoGenerateBrief(
   return initialSource === "template";
 }
 
+const BRIEF_GENERATION_TIMEOUT_MS = 45_000;
+
 export function GenerateBriefSection({
   meetingId,
   memoryStamp,
@@ -102,13 +104,7 @@ export function GenerateBriefSection({
 }: GenerateBriefSectionProps) {
   const prevStaleAfterNotes = useRef(staleAfterNotes);
   const autoGenerateStarted = useRef(false);
-  const shouldAutoGenerateOnMount = shouldAutoGenerateBrief(
-    staleAfterNotes,
-    initialGeminiConfigured,
-    initialBrief,
-    initialSource
-  );
-  const [loading, setLoading] = useState(shouldAutoGenerateOnMount);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brief, setBrief] = useState<MeetingBrief | null>(() =>
     resolveInitialState(
@@ -224,43 +220,25 @@ export function GenerateBriefSection({
     staleAfterNotes,
   ]);
 
-  useEffect(() => {
-    if (autoGenerateStarted.current || loading || brief) {
-      return;
-    }
-
-    if (
-      !shouldAutoGenerateBrief(
-        staleAfterNotes,
-        initialGeminiConfigured,
-        initialBrief,
-        initialSource
-      )
-    ) {
-      return;
-    }
-
-    autoGenerateStarted.current = true;
-    void generateBrief();
-  }, [
-    brief,
-    initialBrief,
-    initialGeminiConfigured,
-    initialSource,
-    loading,
-    staleAfterNotes,
-  ]);
-
-  async function generateBrief() {
+  const generateBrief = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        BRIEF_GENERATION_TIMEOUT_MS
+      );
+
       const response = await fetch("/api/briefs/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ meetingId }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -291,13 +269,44 @@ export function GenerateBriefSection({
       if (data.triage?.status === "warning" || data.triage?.status === "reject") {
         trackEvent("triage_flagged", { meetingId, status: data.triage.status });
       }
-    } catch {
+    } catch (error) {
       autoGenerateStarted.current = false;
-      setError("Network error. Try again.");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setError("Brief generation timed out. Try again.");
+      } else {
+        setError("Network error. Try again.");
+      }
     } finally {
       setLoading(false);
     }
-  }
+  }, [meetingId, onBriefGenerated]);
+
+  useEffect(() => {
+    if (autoGenerateStarted.current || brief) {
+      return;
+    }
+
+    if (
+      !shouldAutoGenerateBrief(
+        staleAfterNotes,
+        initialGeminiConfigured,
+        initialBrief,
+        initialSource
+      )
+    ) {
+      return;
+    }
+
+    autoGenerateStarted.current = true;
+    void generateBrief();
+  }, [
+    brief,
+    generateBrief,
+    initialBrief,
+    initialGeminiConfigured,
+    initialSource,
+    staleAfterNotes,
+  ]);
 
   return (
     <div className="space-y-4">
