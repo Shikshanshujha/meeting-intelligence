@@ -107,6 +107,7 @@ async function main() {
   const allProspectIds = [...JORDAN_PROSPECT_IDS, ...EXTRA_PROSPECT_IDS];
 
   console.log("Resetting demo pipeline data…");
+  console.log(`  Jordan Lee (${repId.slice(0, 8)}…): wipe meetings, restore ${JORDAN_PROSPECT_IDS.length} prospects`);
   await resetRepMeetings(supabase, repId);
   await resetRepMeetings(supabase, samId);
   await resetRepMeetings(supabase, rileyId);

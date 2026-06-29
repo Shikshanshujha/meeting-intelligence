@@ -17,8 +17,8 @@ export function buildProspects(repId: string) {
       stage: "discovery" as const,
       memory_json: {
         pain_points: ["Inbound flat for two quarters", "No dedicated SEO owner"],
-        stakeholders: ["VP Marketing"],
-        timeline: "Evaluating partners this month",
+        stakeholders: ["VP Marketing", "Head of Content (not met yet)"],
+        timeline: "Evaluating partners this month — follow-up overdue",
         next_actions: ["Send SaaS discovery case study", "Book follow-up with head of content"],
         sentiment: "neutral",
         urgency: "medium",
@@ -60,14 +60,14 @@ export function buildProspects(repId: string) {
       stage: "follow_up" as const,
       memory_json: {
         concerns: ["Security review queue", "Internal bandwidth for briefs"],
-        buying_signals: ["Champion re-engaged after QBR", "Shared content calendar"],
+        buying_signals: ["Champion re-engaged after QBR", "Shared content calendar", "Infosec approved questionnaire"],
         pain_points: ["Vertical launch content backlog", "Slow agency turnaround"],
         stakeholders: ["Director of Demand Gen", "Content lead"],
-        timeline: "Follow-up calls every two weeks",
-        objections: ["Needs security questionnaire completed first"],
-        next_actions: ["Complete security review", "Align on vertical launch timeline"],
+        timeline: "Post-security demo needed before Q3 vertical launch",
+        objections: [],
+        next_actions: ["Schedule post-security demo", "Align on Q3 vertical launch dates"],
         sentiment: "positive",
-        urgency: "medium",
+        urgency: "high",
       },
     },
     {
@@ -141,14 +141,14 @@ export function buildProspects(repId: string) {
 
 export function buildMeetings(repId: string) {
   return [
-    // First call — MetricPulse (one completed discovery)
+    // First call — MetricPulse (completed discovery, no follow-up scheduled yet)
     {
       id: SEED_IDS.meetings.metricPulseDiscovery,
       prospect_id: SEED_IDS.prospects.metricPulse,
       rep_id: repId,
       type: "discovery" as const,
-      scheduled_at: daysAgo(4),
-      completed_at: daysAgo(4),
+      scheduled_at: daysAgo(7),
+      completed_at: daysAgo(7),
       triage_status: "proceed" as const,
       triage_explanation: "Clear pain on inbound — worth a structured follow-up.",
       meeting_link: MEET_LINK,
@@ -195,14 +195,14 @@ export function buildMeetings(repId: string) {
         "Differentiate vs incumbent agencies",
       ],
     },
-    // Follow up — Stackline (two completed follow-ups)
+    // Follow up — Stackline (discovery → demo → security cleared, needs next demo)
     {
       id: SEED_IDS.meetings.stacklineDiscovery,
       prospect_id: SEED_IDS.prospects.stackline,
       rep_id: repId,
       type: "discovery" as const,
-      scheduled_at: daysAgo(32),
-      completed_at: daysAgo(32),
+      scheduled_at: daysAgo(38),
+      completed_at: daysAgo(38),
       triage_status: "proceed" as const,
       triage_explanation: "Vertical launch pain is concrete — good fit for Gushwork.",
       meeting_link: MEET_LINK,
@@ -213,8 +213,8 @@ export function buildMeetings(repId: string) {
       prospect_id: SEED_IDS.prospects.stackline,
       rep_id: repId,
       type: "demo" as const,
-      scheduled_at: daysAgo(16),
-      completed_at: daysAgo(16),
+      scheduled_at: daysAgo(22),
+      completed_at: daysAgo(22),
       triage_status: "proceed" as const,
       triage_explanation: "Champion engaged — security review is the main gate.",
       meeting_link: MEET_LINK,
@@ -225,12 +225,15 @@ export function buildMeetings(repId: string) {
       prospect_id: SEED_IDS.prospects.stackline,
       rep_id: repId,
       type: "demo" as const,
-      scheduled_at: daysAgo(5),
-      completed_at: daysAgo(5),
+      scheduled_at: daysAgo(8),
+      completed_at: daysAgo(8),
       triage_status: "proceed" as const,
-      triage_explanation: "Security questionnaire in progress — stay on follow-up cadence.",
+      triage_explanation: "Security cleared — schedule post-infosec demo with content lead.",
       meeting_link: MEET_LINK,
-      open_points: ["Complete security review", "Align on vertical launch timeline"],
+      open_points: [
+        "Schedule post-security demo",
+        "Confirm Q3 vertical launch dates",
+      ],
     },
     // Demo scheduled — VelocityHR (past meetings + upcoming demo)
     {
@@ -262,7 +265,7 @@ export function buildMeetings(repId: string) {
       prospect_id: SEED_IDS.prospects.velocityHr,
       rep_id: repId,
       type: "demo" as const,
-      scheduled_at: daysFromNow(3),
+      scheduled_at: daysFromNow(2),
       completed_at: null,
       triage_status: "proceed" as const,
       triage_explanation: "Follow-up demo to address quality concerns — high intent signal.",
@@ -331,7 +334,7 @@ export function buildBriefs() {
     {
       id: SEED_IDS.briefs.velocityFollowUpDemo,
       meeting_id: SEED_IDS.meetings.velocityFollowUpDemo,
-      source: "template" as const,
+      source: "ai" as const,
       brief: {
         prospect_summary:
           "VelocityHR (120 emp, B2B SaaS) scales SEO content 8→25 blogs/mo. Content team overloaded.",
@@ -349,7 +352,7 @@ export function buildBriefs() {
     {
       id: SEED_IDS.briefs.nomadClosing,
       meeting_id: SEED_IDS.meetings.nomadClosing,
-      source: "template" as const,
+      source: "ai" as const,
       brief: {
         prospect_summary:
           "Nomad Commerce (300 emp, D2C) — traffic plateau, consolidating three SEO vendors.",
@@ -447,13 +450,13 @@ export function buildNotes() {
       id: SEED_IDS.notes.stacklineFollowUp2,
       meeting_id: SEED_IDS.meetings.stacklineFollowUp2,
       raw_notes:
-        "Infosec still reviewing. Champion shared Q3 vertical launch dates. Stay on follow-up cadence — no demo scheduled yet until security clears.",
+        "Infosec approved the questionnaire. Champion wants a technical demo with the content lead before Q3 vertical launch. No follow-up on the calendar yet — schedule the post-security demo.",
       structured_summary: {
-        pain_points: ["Security review in progress"],
+        pain_points: ["Vertical launch dates approaching"],
         stakeholders: ["Director of Demand Gen", "Content lead"],
         sentiment: "positive",
-        objections: ["Security queue"],
-        next_actions: ["Complete security review", "Align on vertical launch timeline"],
+        objections: [],
+        next_actions: ["Schedule post-security demo", "Confirm Q3 vertical launch dates"],
         pipeline_stage: "follow_up",
       },
     },
@@ -570,10 +573,10 @@ export function buildManagerInsights() {
       id: SEED_IDS.insights.stackline,
       prospect_id: SEED_IDS.prospects.stackline,
       health: "yellow" as const,
-      risk: "Deal pacing to security review — could stall without exec air cover.",
-      coaching: "Offer to join security call; keep follow-up cadence tight.",
-      pipeline_signal: "Follow-up — security review in progress",
-      patterns: ["Champion engaged", "Security gate", "Repeat follow-ups"],
+      risk: "Security cleared — risk shifts to scheduling gap before Q3 launch.",
+      coaching: "Book the post-infosec demo this week; loop in content lead on the invite.",
+      pipeline_signal: "Follow-up — security cleared, demo not yet scheduled",
+      patterns: ["Champion engaged", "Security gate cleared", "Scheduling gap"],
     },
     {
       id: SEED_IDS.insights.velocityHr,
@@ -607,12 +610,12 @@ export function buildManagerInsights() {
 
 export function buildJordanMilestones() {
   return [
-    { id: "77777777-7777-4777-8777-777777777301", prospect_id: SEED_IDS.prospects.metricPulse, occurred_at: daysAgo(4), label: "First call — inbound pain confirmed", next_step: "Book follow-up with content lead", tone: "neutral" },
+    { id: "77777777-7777-4777-8777-777777777301", prospect_id: SEED_IDS.prospects.metricPulse, occurred_at: daysAgo(7), label: "First call — inbound pain confirmed", next_step: "Book follow-up with content lead", tone: "neutral" },
     { id: "77777777-7777-4777-8777-777777777111", prospect_id: SEED_IDS.prospects.nomadCommerce, occurred_at: daysAgo(28), label: "Traffic plateau confirmed", next_step: "Run live demo", tone: "neutral" },
     { id: "77777777-7777-4777-8777-777777777112", prospect_id: SEED_IDS.prospects.nomadCommerce, occurred_at: daysAgo(14), label: "Shopping three vendors", next_step: "Get CMO on call", tone: "warning" },
-    { id: "77777777-7777-4777-8777-777777777321", prospect_id: SEED_IDS.prospects.stackline, occurred_at: daysAgo(32), label: "Vertical launch pain captured", next_step: "Workflow demo", tone: "positive" },
-    { id: "77777777-7777-4777-8777-777777777322", prospect_id: SEED_IDS.prospects.stackline, occurred_at: daysAgo(16), label: "Security review started", next_step: "Complete questionnaire", tone: "warning" },
-    { id: "77777777-7777-4777-8777-777777777323", prospect_id: SEED_IDS.prospects.stackline, occurred_at: daysAgo(5), label: "Follow-up — awaiting infosec", next_step: "Schedule demo post-security", tone: "neutral" },
+    { id: "77777777-7777-4777-8777-777777777321", prospect_id: SEED_IDS.prospects.stackline, occurred_at: daysAgo(38), label: "Vertical launch pain captured", next_step: "Workflow demo", tone: "positive" },
+    { id: "77777777-7777-4777-8777-777777777322", prospect_id: SEED_IDS.prospects.stackline, occurred_at: daysAgo(22), label: "Security review started", next_step: "Complete questionnaire", tone: "warning" },
+    { id: "77777777-7777-4777-8777-777777777323", prospect_id: SEED_IDS.prospects.stackline, occurred_at: daysAgo(8), label: "Infosec cleared — schedule demo", next_step: "Book post-security demo", tone: "positive" },
     { id: "77777777-7777-4777-8777-777777777101", prospect_id: SEED_IDS.prospects.velocityHr, occurred_at: daysAgo(24), label: "P0 requirements captured", next_step: "Book product demo", tone: "positive" },
     { id: "77777777-7777-4777-8777-777777777102", prospect_id: SEED_IDS.prospects.velocityHr, occurred_at: daysAgo(11), label: "Raised quality concern", next_step: "Second demo on QA workflow", tone: "warning" },
     { id: "77777777-7777-4777-8777-777777777401", prospect_id: SEED_IDS.prospects.relayCommerce, occurred_at: daysAgo(52), label: "Discovery — CAC pressure", next_step: "Book demo", tone: "positive" },
