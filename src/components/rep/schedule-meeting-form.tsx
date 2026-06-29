@@ -296,7 +296,11 @@ export function ScheduleMeetingForm({
                     disabled={loading || !selectedProspectId}
                     className="btn-primary"
                   >
-                    {loading ? <Spinner label="Scheduling…" /> : "Schedule meeting"}
+                    {loading ? (
+                      <Spinner label="Scheduling & preparing brief…" />
+                    ) : (
+                      "Schedule meeting"
+                    )}
                   </button>
                 </div>
               </form>

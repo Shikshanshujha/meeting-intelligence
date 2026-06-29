@@ -9,6 +9,7 @@ import {
   buildMergedMemory,
   parseMemoryResponse,
 } from "@/lib/ai/prompts/memory";
+import { pregenerateMeetingBrief } from "@/lib/ai/workflows/generate-brief";
 import { inferProspectStageFromNotes } from "@/lib/infer-pipeline-stage";
 import { inferMeetingTypeForStage } from "@/lib/workflows/schedule-meeting";
 import { createServiceClient } from "@/lib/auth/demo-users";
@@ -283,6 +284,8 @@ export async function processNotesWorkflow(
         } catch (nextMilestoneError) {
           console.error("next meeting milestone:", nextMilestoneError);
         }
+
+        await pregenerateMeetingBrief(nextMeeting.id, repId);
       }
     }
   }

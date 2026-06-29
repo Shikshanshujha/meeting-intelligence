@@ -22,11 +22,33 @@ export interface GenerateBriefResult {
   ai_error?: string;
 }
 
+const ENRICHMENT_TIMEOUT_MS = 1500;
+
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   return Promise.race([
     promise,
     new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
   ]);
+}
+
+function memoryHasBriefContext(memory: ProspectMemory): boolean {
+  return (
+    (memory.pain_points?.length ?? 0) > 0 ||
+    (memory.objections?.length ?? 0) > 0 ||
+    (memory.next_actions?.length ?? 0) > 0 ||
+    (memory.buying_signals?.length ?? 0) > 0
+  );
+}
+
+export async function pregenerateMeetingBrief(
+  meetingId: string,
+  repId: string
+): Promise<void> {
+  try {
+    await generateBriefWorkflow(meetingId, repId);
+  } catch (error) {
+    console.error(`pregenerateMeetingBrief ${meetingId}:`, error);
+  }
 }
 
 export async function generateBriefWorkflow(
@@ -72,7 +94,9 @@ export async function generateBriefWorkflow(
 
   const memory = (prospect.memory_json ?? {}) as ProspectMemory;
   const meetingType = meeting.type as MeetingType;
-  const enrichment = await withTimeout(enrichCompanyWebsite(prospect.website), 4500);
+  const enrichment = memoryHasBriefContext(memory)
+    ? null
+    : await withTimeout(enrichCompanyWebsite(prospect.website), ENRICHMENT_TIMEOUT_MS);
 
   const enrichedMemory: ProspectMemory = {
     ...memory,

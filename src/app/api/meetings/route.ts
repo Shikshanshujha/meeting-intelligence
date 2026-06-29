@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { pregenerateMeetingBrief } from "@/lib/ai/workflows/generate-brief";
 import { getSessionProfile } from "@/lib/auth/session";
 import { scheduleMeetingWorkflow } from "@/lib/workflows/schedule-meeting";
 import type { MeetingType } from "@/types";
@@ -31,6 +32,8 @@ export async function POST(request: Request) {
       meeting_type,
       meeting_link,
     });
+
+    await pregenerateMeetingBrief(result.meeting_id, profile.id);
 
     revalidatePath("/rep");
     revalidatePath("/manager");
