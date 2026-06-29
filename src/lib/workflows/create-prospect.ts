@@ -1,5 +1,4 @@
 import { createServiceClient } from "@/lib/auth/demo-users";
-import { createClient } from "@/lib/supabase/server";
 import type { MeetingType } from "@/types";
 
 export interface CreateProspectInput {
@@ -46,11 +45,10 @@ export async function createProspectWorkflow(
     throw new Error("Invalid meeting date");
   }
 
-  const supabase = await createClient();
   const serviceClient = createServiceClient();
   const meetingType = input.meeting_type ?? "discovery";
 
-  const { data: prospect, error: prospectError } = await supabase
+  const { data: prospect, error: prospectError } = await serviceClient
     .from("prospects")
     .insert({
       company,
@@ -70,7 +68,7 @@ export async function createProspectWorkflow(
     throw new Error(prospectError?.message ?? "Could not create prospect");
   }
 
-  const { data: meeting, error: meetingError } = await supabase
+  const { data: meeting, error: meetingError } = await serviceClient
     .from("meetings")
     .insert({
       prospect_id: prospect.id,
@@ -116,7 +114,10 @@ export async function createProspectWorkflow(
       tone: "neutral",
     });
   } catch (milestoneError) {
-    console.error("pipeline_milestones insert:", milestoneError);
+    console.error(
+      "pipeline_milestones insert:",
+      milestoneError instanceof Error ? milestoneError.message : milestoneError
+    );
   }
 
   return {
