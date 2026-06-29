@@ -56,6 +56,25 @@ export async function scheduleMeetingWorkflow(
     throw new Error("You can only schedule meetings for your prospects");
   }
 
+  const { data: existingUpcoming, error: existingError } = await serviceClient
+    .from("meetings")
+    .select("id")
+    .eq("prospect_id", prospect.id)
+    .is("completed_at", null)
+    .gte("scheduled_at", new Date().toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (existingUpcoming) {
+    throw new Error(
+      "This prospect already has an upcoming meeting. Open it and reschedule instead."
+    );
+  }
+
   const meetingType =
     input.meeting_type ?? inferMeetingTypeForStage(prospect.stage as ProspectStage);
 

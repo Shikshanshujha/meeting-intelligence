@@ -2,17 +2,12 @@ import Link from "next/link";
 import {
   formatDate,
   formatMeetingType,
-  formatStage,
   isUpcoming,
   type RepMeetingRow,
 } from "@/lib/data/queries";
 import { bucketPastMeetingsByWorkflow } from "@/lib/data/rep-meeting-buckets";
+import { getMeetingCallout } from "@/lib/rep/meeting-callout";
 import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
-import {
-  mapProspectStageToWorkflow,
-  WORKFLOW_STAGES,
-  type WorkflowStage,
-} from "@/lib/workflow-stages";
 
 interface RepMeetingBoardProps {
   meetings: RepMeetingRow[];
@@ -58,7 +53,7 @@ export function RepMeetingBoard({ meetings }: RepMeetingBoardProps) {
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
           Past meetings
         </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {buckets.map(({ stage, label, meetings: items }) => (
             <div
               key={stage}
@@ -91,10 +86,6 @@ export function RepMeetingBoard({ meetings }: RepMeetingBoardProps) {
   );
 }
 
-function workflowLabel(stage: WorkflowStage): string {
-  return WORKFLOW_STAGES.find((item) => item.key === stage)?.label ?? stage;
-}
-
 function MeetingCard({
   meeting,
   highlight = false,
@@ -104,8 +95,8 @@ function MeetingCard({
   highlight?: boolean;
   compact?: boolean;
 }) {
-  const workflow = mapProspectStageToWorkflow(meeting.prospect.stage);
   const upcoming = isUpcoming(meeting.scheduled_at, meeting.completed_at);
+  const callout = getMeetingCallout(meeting);
 
   if (highlight && upcoming) {
     return (
@@ -115,9 +106,7 @@ function MeetingCard({
           <p className="mt-1 text-xs text-zinc-500">
             {formatMeetingType(meeting.type)} · {formatDate(meeting.scheduled_at)}
           </p>
-          <p className="mt-1 text-xs text-zinc-600">
-            {formatStage(meeting.prospect.stage)} · {workflowLabel(workflow)}
-          </p>
+          <p className="mt-1 text-xs text-zinc-600">{callout}</p>
           {meeting.has_brief && (
             <p className="mt-2 text-xs text-blue-700">Brief ready</p>
           )}
@@ -152,9 +141,7 @@ function MeetingCard({
       <p className="mt-1 text-xs text-zinc-500">
         {formatMeetingType(meeting.type)} · {formatDate(meeting.scheduled_at)}
       </p>
-      <p className="mt-1 text-xs text-zinc-600">
-        {formatStage(meeting.prospect.stage)} · {workflowLabel(workflow)}
-      </p>
+      <p className="mt-1 text-xs text-zinc-600">{callout}</p>
       {meeting.completed_at && (
         <p className="mt-1 text-xs font-medium text-emerald-700">Completed</p>
       )}

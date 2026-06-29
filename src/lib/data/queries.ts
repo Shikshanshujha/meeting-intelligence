@@ -30,11 +30,13 @@ export interface RepMeetingRow {
   meeting_link: string | null;
   triage_status: TriageStatus | null;
   triage_explanation: string | null;
+  open_points: string[];
   prospect: {
     id: string;
     company: string;
     website: string;
     stage: ProspectStage;
+    memory: ProspectMemory | null;
   };
   has_notes: boolean;
   has_brief: boolean;
@@ -134,11 +136,13 @@ export async function getRepMeetings(repId: string): Promise<RepMeetingRow[]> {
       meeting_link,
       triage_status,
       triage_explanation,
+      open_points,
       prospect:prospects!inner (
         id,
         company,
         website,
-        stage
+        stage,
+        memory_json
       ),
       briefs ( id ),
       meeting_notes ( id )
@@ -163,7 +167,16 @@ export async function getRepMeetings(repId: string): Promise<RepMeetingRow[]> {
       meeting_link: row.meeting_link ?? null,
       triage_status: row.triage_status as TriageStatus | null,
       triage_explanation: row.triage_explanation,
-      prospect: prospect as RepMeetingRow["prospect"],
+      open_points: Array.isArray(row.open_points)
+        ? (row.open_points as string[])
+        : [],
+      prospect: {
+        id: prospect.id,
+        company: prospect.company,
+        website: prospect.website,
+        stage: prospect.stage as ProspectStage,
+        memory: (prospect.memory_json as ProspectMemory | null) ?? null,
+      },
       has_brief: (row.briefs?.length ?? 0) > 0,
       has_notes:
         Boolean(row.completed_at) && (row.meeting_notes?.length ?? 0) > 0,
@@ -352,6 +365,7 @@ export function getWorkflowCounts(prospects: ManagerProspectRow[]) {
     first_call: 0,
     follow_up: 0,
     demo_scheduled: 0,
+    ongoing_pilot: 0,
     converted: 0,
     rejected: 0,
   };
@@ -548,6 +562,49 @@ export function getNextUpcomingMeeting(
       (meeting) => isUpcoming(meeting.scheduled_at, meeting.completed_at)
     ) ?? null
   );
+}
+
+export function getUpcomingMeetingForProspect(
+  meetings: RepMeetingRow[],
+  prospectId: string
+): RepMeetingRow | null {
+  const upcoming = meetings.filter(
+    (meeting) =>
+      meeting.prospect.id === prospectId &&
+      isUpcoming(meeting.scheduled_at, meeting.completed_at)
+  );
+
+  if (upcoming.length === 0) {
+    return null;
+  }
+
+  return upcoming.sort(
+    (a, b) =>
+      new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+  )[0];
+}
+
+export function indexUpcomingMeetingsByProspect(
+  meetings: RepMeetingRow[]
+): Record<string, RepMeetingRow> {
+  const indexed: Record<string, RepMeetingRow> = {};
+
+  for (const meeting of meetings) {
+    if (!isUpcoming(meeting.scheduled_at, meeting.completed_at)) {
+      continue;
+    }
+
+    const existing = indexed[meeting.prospect.id];
+    if (
+      !existing ||
+      new Date(meeting.scheduled_at).getTime() <
+        new Date(existing.scheduled_at).getTime()
+    ) {
+      indexed[meeting.prospect.id] = meeting;
+    }
+  }
+
+  return indexed;
 }
 
 export function filterRepMeetings(

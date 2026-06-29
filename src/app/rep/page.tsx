@@ -12,6 +12,7 @@ import {
   getNextUpcomingMeeting,
   getRepMeetings,
   getRepProspects,
+  indexUpcomingMeetingsByProspect,
 } from "@/lib/data/queries";
 import { deriveFollowUpPrompts } from "@/lib/data/rep-follow-up-prompts";
 import { getSessionProfile } from "@/lib/auth/session";
@@ -41,6 +42,7 @@ export default async function RepPage({ searchParams }: RepPageProps) {
   const meetings = filterRepMeetings(allMeetings, rangeKey, stageFilter);
   const nextUp = getNextUpcomingMeeting(allMeetings);
   const followUpPrompts = deriveFollowUpPrompts(allMeetings);
+  const upcomingMeetingsByProspect = indexUpcomingMeetingsByProspect(allMeetings);
 
   return (
     <AppShell
@@ -50,7 +52,10 @@ export default async function RepPage({ searchParams }: RepPageProps) {
       actions={
         <>
           <AddProspectForm />
-          <ScheduleMeetingForm prospects={prospects} />
+          <ScheduleMeetingForm
+            prospects={prospects}
+            upcomingMeetingsByProspect={upcomingMeetingsByProspect}
+          />
           <Suspense fallback={null}>
             <RepWorkspaceFilters />
           </Suspense>

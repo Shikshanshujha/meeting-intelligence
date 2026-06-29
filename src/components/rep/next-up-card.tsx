@@ -5,7 +5,6 @@ import {
   isUpcoming,
   type RepMeetingRow,
 } from "@/lib/data/queries";
-import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
 import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
 import { TriageBadge } from "@/components/shared/triage-badge";
 
@@ -48,12 +47,6 @@ export function NextUpCard({ meeting }: NextUpCardProps) {
             variant="dark"
           />
         )}
-        <ScheduleMeetingForm
-          prospectId={meeting.prospect.id}
-          prospectCompany={meeting.prospect.company}
-          buttonLabel="Schedule follow-up"
-          buttonClassName="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-        />
       </div>
     </section>
   );

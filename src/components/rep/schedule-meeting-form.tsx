@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Spinner } from "@/components/shared/spinner";
-import { formatMeetingType } from "@/lib/data/formatters";
+import { formatDate, formatMeetingType } from "@/lib/data/formatters";
 import { inferMeetingTypeForStage } from "@/lib/workflows/schedule-meeting";
 import { trackEvent } from "@/lib/analytics/posthog";
+import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
+import type { RepMeetingRow } from "@/lib/data/queries";
 import type { MeetingType, ProspectStage } from "@/types";
 
 export interface ScheduleMeetingProspect {
@@ -22,6 +24,8 @@ interface ScheduleMeetingFormProps {
   defaultMeetingType?: MeetingType;
   buttonLabel?: string;
   buttonClassName?: string;
+  upcomingMeetingsByProspect?: Record<string, RepMeetingRow>;
+  existingUpcomingMeeting?: RepMeetingRow | null;
 }
 
 const MEETING_TYPES: MeetingType[] = ["discovery", "demo", "closing"];
@@ -42,6 +46,8 @@ export function ScheduleMeetingForm({
   defaultMeetingType,
   buttonLabel = "Schedule meeting",
   buttonClassName = "btn-secondary px-4 py-2",
+  upcomingMeetingsByProspect = {},
+  existingUpcomingMeeting = null,
 }: ScheduleMeetingFormProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -61,6 +67,23 @@ export function ScheduleMeetingForm({
     (prospectId && prospectCompany
       ? { id: prospectId, company: prospectCompany }
       : null);
+  const blockedUpcomingMeeting =
+    existingUpcomingMeeting ??
+    (selectedProspectId
+      ? upcomingMeetingsByProspect[selectedProspectId] ?? null
+      : null);
+
+  if (lockedProspect && blockedUpcomingMeeting) {
+    return (
+      <UpcomingMeetingActions
+        meetingId={blockedUpcomingMeeting.id}
+        prospectCompany={prospectCompany ?? selectedProspect?.company ?? "Prospect"}
+        meetingType={blockedUpcomingMeeting.type}
+        scheduledAt={blockedUpcomingMeeting.scheduled_at}
+        meetingLink={blockedUpcomingMeeting.meeting_link}
+      />
+    );
+  }
 
   useEffect(() => {
     setMounted(true);
@@ -194,6 +217,38 @@ export function ScheduleMeetingForm({
                 onSubmit={handleSubmit}
                 className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"
               >
+                {blockedUpcomingMeeting ? (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                      {selectedProspect?.company ?? "This prospect"} already has an
+                      upcoming {formatMeetingType(blockedUpcomingMeeting.type).toLowerCase()}{" "}
+                      on {formatDate(blockedUpcomingMeeting.scheduled_at)}. Reschedule that
+                      meeting instead of booking a duplicate.
+                    </div>
+                    <UpcomingMeetingActions
+                      meetingId={blockedUpcomingMeeting.id}
+                      prospectCompany={
+                        selectedProspect?.company ??
+                        prospectCompany ??
+                        "Prospect"
+                      }
+                      meetingType={blockedUpcomingMeeting.type}
+                      scheduledAt={blockedUpcomingMeeting.scheduled_at}
+                      meetingLink={blockedUpcomingMeeting.meeting_link}
+                      onChanged={() => setOpen(false)}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => closeModal()}
+                        className="btn-secondary"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 {!lockedProspect && (
                   <div>
                     <label
@@ -303,6 +358,8 @@ export function ScheduleMeetingForm({
                     )}
                   </button>
                 </div>
+                  </>
+                )}
               </form>
             </section>
           </div>,

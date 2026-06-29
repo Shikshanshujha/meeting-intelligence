@@ -11,6 +11,7 @@ export const WORKFLOW_STAGE_FILTER_OPTIONS: {
   { key: "first_call", label: "First call" },
   { key: "follow_up", label: "Follow up" },
   { key: "demo_scheduled", label: "Demo scheduled" },
+  { key: "ongoing_pilot", label: "Ongoing pilot" },
   { key: "converted", label: "Converted" },
   { key: "rejected", label: "Rejected" },
 ];
@@ -38,6 +39,8 @@ export function mapWorkflowStageToProspectStage(
       return "follow_up";
     case "demo_scheduled":
       return "demo_scheduled";
+    case "ongoing_pilot":
+      return "closing";
     case "converted":
       return "won";
     case "rejected":
@@ -82,6 +85,14 @@ export function inferProspectStageFromNotes(
     )
   ) {
     return "demo_scheduled";
+  }
+
+  if (
+    /pilot (started|kicked off|in progress|live|launch|running)|mid-pilot|during pilot|pilot week \d|active pilot/i.test(
+      text
+    )
+  ) {
+    return "closing";
   }
 
   if (

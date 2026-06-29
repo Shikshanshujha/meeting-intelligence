@@ -18,7 +18,7 @@ export function WorkflowPipeline({ prospects, timeline }: WorkflowPipelineProps)
         <p className="mt-1 text-sm text-zinc-500">Prospects by stage</p>
 
         <div className="mt-6 flex flex-1 items-center">
-          <div className="grid w-full grid-cols-5 items-start gap-1">
+          <div className="grid w-full grid-cols-3 items-start gap-1 sm:grid-cols-6">
             {WORKFLOW_STAGES.map((stage, index) => (
               <div key={stage.key} className="relative flex min-w-0 flex-col items-center text-center">
                 {index > 0 && (

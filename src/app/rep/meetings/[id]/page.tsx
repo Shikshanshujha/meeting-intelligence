@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { LogOutButton } from "@/components/auth/log-out-button";
 import { FollowUpPromptBanner } from "@/components/rep/follow-up-prompt-banner";
 import { MeetingDetailPanel } from "@/components/rep/meeting-detail-panel";
-import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
+import { ProspectFollowUpOrReschedule } from "@/components/rep/prospect-follow-up-or-reschedule";
 import { UpcomingMeetingActions } from "@/components/rep/upcoming-meeting-actions";
 import { AppShell } from "@/components/shared/app-shell";
 import { TriageBadge } from "@/components/shared/triage-badge";
@@ -14,6 +14,7 @@ import {
   formatStage,
   getRepMeetingDetail,
   getRepMeetings,
+  getUpcomingMeetingForProspect,
   isMeetingPast,
   isUpcoming,
 } from "@/lib/data/queries";
@@ -45,6 +46,10 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
   );
   const isPast = isMeetingPast(meeting.scheduled_at, meeting.completed_at);
   const isUpcomingMeeting = isUpcoming(meeting.scheduled_at, meeting.completed_at);
+  const prospectUpcomingMeeting = getUpcomingMeetingForProspect(
+    allMeetings,
+    meeting.prospect_id
+  );
 
   return (
     <AppShell
@@ -63,19 +68,18 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
               scheduledAt={meeting.scheduled_at}
               meetingLink={meeting.meeting_link}
             />
-          ) : (
-            <ScheduleMeetingForm
+          ) : meeting.completed_at ? (
+            <ProspectFollowUpOrReschedule
               prospectId={meeting.prospect_id}
               prospectCompany={meeting.prospect.company}
+              upcomingMeeting={prospectUpcomingMeeting}
               defaultMeetingType={
-                meeting.completed_at
-                  ? meeting.type === "discovery"
-                    ? "demo"
-                    : meeting.type
-                  : undefined
+                meeting.type === "discovery" ? "demo" : meeting.type
               }
+              scheduleButtonLabel="Schedule follow-up"
+              scheduleButtonClassName="btn-secondary px-4 py-2"
             />
-          )}
+          ) : null}
           <LogOutButton />
         </>
       }
