@@ -4,11 +4,13 @@ import { AddProspectForm } from "@/components/rep/add-prospect-form";
 import { RepMeetingBoard } from "@/components/rep/meeting-board";
 import { NextUpCard } from "@/components/rep/next-up-card";
 import { RepWorkspaceFilters } from "@/components/rep/rep-workspace-filters";
+import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
 import { AppShell } from "@/components/shared/app-shell";
 import {
   filterRepMeetings,
   getNextUpcomingMeeting,
   getRepMeetings,
+  getRepProspects,
 } from "@/lib/data/queries";
 import { getSessionProfile } from "@/lib/auth/session";
 import type { DateRangeKey } from "@/lib/date-ranges";
@@ -30,7 +32,10 @@ export default async function RepPage({ searchParams }: RepPageProps) {
   const rangeKey = (params.range as DateRangeKey) ?? "current_quarter";
   const stageFilter = (params.stage as WorkflowStageFilter) ?? "all";
 
-  const allMeetings = await getRepMeetings(profile.id);
+  const [allMeetings, prospects] = await Promise.all([
+    getRepMeetings(profile.id),
+    getRepProspects(profile.id),
+  ]);
   const meetings = filterRepMeetings(allMeetings, rangeKey, stageFilter);
   const nextUp = getNextUpcomingMeeting(allMeetings);
 
@@ -42,6 +47,7 @@ export default async function RepPage({ searchParams }: RepPageProps) {
       actions={
         <>
           <AddProspectForm />
+          <ScheduleMeetingForm prospects={prospects} />
           <Suspense fallback={null}>
             <RepWorkspaceFilters />
           </Suspense>

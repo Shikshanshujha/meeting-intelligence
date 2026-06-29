@@ -9,6 +9,7 @@ import type { ProspectStage } from "@/types";
 interface MeetingDetailPanelProps {
   meetingId: string;
   memoryStamp: string;
+  prospectStage?: ProspectStage;
   initialBrief?: MeetingBrief | null;
   initialSource?: string;
   initialGeminiConfigured?: boolean;
@@ -21,6 +22,7 @@ interface MeetingDetailPanelProps {
 export function MeetingDetailPanel({
   meetingId,
   memoryStamp: initialMemoryStamp,
+  prospectStage = "discovery",
   initialBrief,
   initialSource,
   initialGeminiConfigured,
@@ -54,6 +56,7 @@ export function MeetingDetailPanel({
 
       <MeetingNotesForm
         meetingId={meetingId}
+        prospectStage={prospectStage}
         submittedNotes={submittedNotes}
         submittedTranscript={submittedTranscript}
         submittedStage={submittedStage}

@@ -3,6 +3,7 @@ import posthog from "posthog-js";
 type AnalyticsEvent =
   | "brief_generated"
   | "meeting_completed"
+  | "meeting_scheduled"
   | "memory_updated"
   | "manager_opened"
   | "prospect_created"

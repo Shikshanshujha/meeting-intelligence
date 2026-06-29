@@ -44,9 +44,11 @@ export function GenerateBriefSection({
       setStale(true);
       return;
     }
-    setBrief(initialBrief ?? null);
-    setSource(initialSource);
-    setStale(false);
+    if (initialBrief) {
+      setBrief(initialBrief);
+      setSource(initialSource);
+      setStale(false);
+    }
   }, [memoryStamp, initialBrief, initialSource, staleAfterNotes]);
 
   async function generateBrief() {

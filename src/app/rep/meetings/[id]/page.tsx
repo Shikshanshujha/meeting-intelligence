@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { LogOutButton } from "@/components/auth/log-out-button";
 import { MeetingDetailPanel } from "@/components/rep/meeting-detail-panel";
+import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
 import { AppShell } from "@/components/shared/app-shell";
 import { TriageBadge } from "@/components/shared/triage-badge";
 import { isGeminiConfigured } from "@/lib/ai/gemini";
@@ -40,7 +41,22 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
       subtitle={`${formatMeetingType(meeting.type)} · ${formatDate(meeting.scheduled_at)} · ${formatStage(meeting.prospect.stage)}`}
       backHref="/rep"
       backLabel="All meetings"
-      actions={<LogOutButton />}
+      actions={
+        <>
+          <ScheduleMeetingForm
+            prospectId={meeting.prospect_id}
+            prospectCompany={meeting.prospect.company}
+            defaultMeetingType={
+              meeting.completed_at
+                ? meeting.type === "discovery"
+                  ? "demo"
+                  : meeting.type
+                : undefined
+            }
+          />
+          <LogOutButton />
+        </>
+      }
     >
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -102,6 +118,7 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
       <MeetingDetailPanel
         meetingId={meeting.id}
         memoryStamp={meeting.memory_stamp}
+        prospectStage={meeting.prospect.stage}
         initialBrief={meeting.brief?.brief}
         initialSource={meeting.brief?.source}
         initialGeminiConfigured={isGeminiConfigured()}

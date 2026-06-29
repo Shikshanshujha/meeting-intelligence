@@ -10,6 +10,7 @@ import {
   parseMemoryResponse,
 } from "@/lib/ai/prompts/memory";
 import { inferProspectStageFromNotes } from "@/lib/infer-pipeline-stage";
+import { inferMeetingTypeForStage } from "@/lib/workflows/schedule-meeting";
 import { createServiceClient } from "@/lib/auth/demo-users";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -21,6 +22,11 @@ import type {
 
 export interface ProcessNotesOptions {
   markComplete?: boolean;
+  nextMeeting?: {
+    scheduled_at: string;
+    type?: MeetingType;
+    meeting_link?: string | null;
+  };
 }
 
 export interface ProcessNotesResult {
@@ -30,6 +36,7 @@ export interface ProcessNotesResult {
   completed: boolean;
   memory_stamp: string;
   stage: ProspectStage;
+  next_meeting_id?: string;
 }
 
 async function invalidateProspectBriefs(
@@ -236,6 +243,50 @@ export async function processNotesWorkflow(
     console.error("pipeline_milestones insert:", milestoneResult.value.error.message);
   }
 
+  let nextMeetingId: string | undefined;
+
+  if (options?.nextMeeting?.scheduled_at) {
+    const nextScheduled = new Date(options.nextMeeting.scheduled_at);
+    if (!Number.isNaN(nextScheduled.getTime())) {
+      const nextType =
+        options.nextMeeting.type ??
+        inferMeetingTypeForStage(nextStage);
+
+      const { data: nextMeeting, error: nextMeetingError } = await serviceClient
+        .from("meetings")
+        .insert({
+          prospect_id: prospect.id,
+          rep_id: repId,
+          type: nextType,
+          scheduled_at: nextScheduled.toISOString(),
+          meeting_link: options.nextMeeting.meeting_link?.trim() || null,
+          triage_status: "proceed",
+          triage_explanation:
+            "Follow-up scheduled — review memory before the call.",
+          open_points: structured_summary.next_actions.slice(0, 5),
+        })
+        .select("id")
+        .single();
+
+      if (nextMeetingError) {
+        console.error("next meeting insert:", nextMeetingError.message);
+      } else if (nextMeeting) {
+        nextMeetingId = nextMeeting.id;
+        try {
+          await serviceClient.from("pipeline_milestones").insert({
+            prospect_id: prospect.id,
+            occurred_at: now,
+            label: `Next ${nextType} scheduled`,
+            next_step: structured_summary.next_actions[0] ?? null,
+            tone: "neutral",
+          });
+        } catch (nextMilestoneError) {
+          console.error("next meeting milestone:", nextMilestoneError);
+        }
+      }
+    }
+  }
+
   return {
     structured_summary,
     memory,
@@ -243,5 +294,6 @@ export async function processNotesWorkflow(
     completed: true,
     memory_stamp: now,
     stage: nextStage,
+    next_meeting_id: nextMeetingId,
   };
 }

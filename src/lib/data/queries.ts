@@ -39,6 +39,34 @@ export interface RepMeetingRow {
   has_brief: boolean;
 }
 
+export interface RepProspectOption {
+  id: string;
+  company: string;
+  stage: ProspectStage;
+}
+
+export async function getRepProspects(repId: string): Promise<RepProspectOption[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("prospects")
+    .select("id, company, stage")
+    .eq("owner_id", repId)
+    .not("stage", "in", '("won","rejected")')
+    .order("company");
+
+  if (error) {
+    console.error("getRepProspects:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    company: row.company,
+    stage: row.stage as ProspectStage,
+  }));
+}
+
 export interface ManagerProspectRow {
   id: string;
   company: string;
@@ -364,6 +392,7 @@ export interface RepMeetingDetail {
   type: MeetingType;
   scheduled_at: string;
   completed_at: string | null;
+  prospect_id: string;
   meeting_link: string | null;
   open_points: string[];
   triage_status: TriageStatus | null;
@@ -447,6 +476,7 @@ export async function getRepMeetingDetail(
     type: data.type as MeetingType,
     scheduled_at: data.scheduled_at,
     completed_at: data.completed_at ?? null,
+    prospect_id: data.prospect_id,
     meeting_link: data.meeting_link,
     open_points: Array.isArray(data.open_points)
       ? (data.open_points as string[])
