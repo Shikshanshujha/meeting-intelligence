@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { LogOutButton } from "@/components/auth/log-out-button";
+import { FollowUpPromptBanner } from "@/components/rep/follow-up-prompt-banner";
 import { MeetingDetailPanel } from "@/components/rep/meeting-detail-panel";
 import { ScheduleMeetingForm } from "@/components/rep/schedule-meeting-form";
 import { AppShell } from "@/components/shared/app-shell";
@@ -11,8 +12,10 @@ import {
   formatMeetingType,
   formatStage,
   getRepMeetingDetail,
+  getRepMeetings,
   isMeetingPast,
 } from "@/lib/data/queries";
+import { deriveFollowUpPrompts } from "@/lib/data/rep-follow-up-prompts";
 
 interface MeetingDetailPageProps {
   params: Promise<{ id: string }>;
@@ -26,12 +29,18 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
   }
 
   const { id } = await params;
-  const meeting = await getRepMeetingDetail(id, profile.id);
+  const [meeting, allMeetings] = await Promise.all([
+    getRepMeetingDetail(id, profile.id),
+    getRepMeetings(profile.id),
+  ]);
 
   if (!meeting) {
     notFound();
   }
 
+  const followUpPrompt = deriveFollowUpPrompts(allMeetings).find(
+    (prompt) => prompt.prospect_id === meeting.prospect_id
+  );
   const isPast = isMeetingPast(meeting.scheduled_at, meeting.completed_at);
 
   return (
@@ -59,6 +68,7 @@ export default async function MeetingDetailPage({ params }: MeetingDetailPagePro
       }
     >
       <div className="mb-6 space-y-4">
+        {followUpPrompt && <FollowUpPromptBanner prompt={followUpPrompt} />}
         <div className="flex flex-wrap items-center gap-2">
           {meeting.completed_at && (
             <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">

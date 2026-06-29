@@ -52,6 +52,7 @@ export function MeetingDetailPanel({
         initialSource={initialSource}
         initialGeminiConfigured={initialGeminiConfigured}
         staleAfterNotes={staleBrief}
+        onBriefGenerated={() => setStaleBrief(false)}
       />
 
       <MeetingNotesForm

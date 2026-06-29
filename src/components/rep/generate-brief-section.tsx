@@ -1,8 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/shared/spinner";
+import {
+  clearCachedBrief,
+  getCachedBrief,
+  setCachedBrief,
+} from "@/lib/rep/brief-client-cache";
 import type { MeetingBrief } from "@/types";
 import { BriefCard } from "./brief-card";
 import { trackEvent } from "@/lib/analytics/posthog";
@@ -14,6 +18,77 @@ interface GenerateBriefSectionProps {
   initialSource?: string;
   initialGeminiConfigured?: boolean;
   staleAfterNotes?: boolean;
+  onBriefGenerated?: () => void;
+}
+
+function resolveInitialState(
+  meetingId: string,
+  staleAfterNotes: boolean,
+  initialBrief?: MeetingBrief | null,
+  initialSource?: string,
+  initialGeminiConfigured?: boolean
+) {
+  const cached = getCachedBrief(meetingId);
+
+  if (cached) {
+    return {
+      brief: cached.brief,
+      source: cached.source,
+      geminiConfigured: cached.geminiConfigured ?? initialGeminiConfigured,
+      aiError: cached.aiError,
+      stale: false,
+    };
+  }
+
+  if (staleAfterNotes) {
+    return {
+      brief: null as MeetingBrief | null,
+      source: undefined as string | undefined,
+      geminiConfigured: initialGeminiConfigured,
+      aiError: undefined as string | undefined,
+      stale: true,
+    };
+  }
+
+  if (initialBrief) {
+    const skipTemplateForAi =
+      initialSource === "template" && initialGeminiConfigured !== false;
+
+    if (!skipTemplateForAi) {
+      return {
+        brief: initialBrief,
+        source: initialSource,
+        geminiConfigured: initialGeminiConfigured,
+        aiError: undefined,
+        stale: false,
+      };
+    }
+  }
+
+  return {
+    brief: null as MeetingBrief | null,
+    source: undefined as string | undefined,
+    geminiConfigured: initialGeminiConfigured,
+    aiError: undefined as string | undefined,
+    stale: false,
+  };
+}
+
+function shouldAutoGenerateBrief(
+  staleAfterNotes: boolean,
+  initialGeminiConfigured: boolean | undefined,
+  initialBrief?: MeetingBrief | null,
+  initialSource?: string
+) {
+  if (staleAfterNotes || initialGeminiConfigured === false) {
+    return false;
+  }
+
+  if (!initialBrief) {
+    return true;
+  }
+
+  return initialSource === "template";
 }
 
 export function GenerateBriefSection({
@@ -23,33 +98,158 @@ export function GenerateBriefSection({
   initialSource,
   initialGeminiConfigured,
   staleAfterNotes = false,
+  onBriefGenerated,
 }: GenerateBriefSectionProps) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const prevStaleAfterNotes = useRef(staleAfterNotes);
+  const autoGenerateStarted = useRef(false);
+  const shouldAutoGenerateOnMount = shouldAutoGenerateBrief(
+    staleAfterNotes,
+    initialGeminiConfigured,
+    initialBrief,
+    initialSource
+  );
+  const [loading, setLoading] = useState(shouldAutoGenerateOnMount);
   const [error, setError] = useState<string | null>(null);
-  const [brief, setBrief] = useState<MeetingBrief | null>(
-    staleAfterNotes ? null : (initialBrief ?? null)
+  const [brief, setBrief] = useState<MeetingBrief | null>(() =>
+    resolveInitialState(
+      meetingId,
+      staleAfterNotes,
+      initialBrief,
+      initialSource,
+      initialGeminiConfigured
+    ).brief
   );
-  const [source, setSource] = useState(staleAfterNotes ? undefined : initialSource);
+  const [source, setSource] = useState<string | undefined>(() =>
+    resolveInitialState(
+      meetingId,
+      staleAfterNotes,
+      initialBrief,
+      initialSource,
+      initialGeminiConfigured
+    ).source
+  );
   const [geminiConfigured, setGeminiConfigured] = useState<boolean | undefined>(
-    initialGeminiConfigured
+    () =>
+      resolveInitialState(
+        meetingId,
+        staleAfterNotes,
+        initialBrief,
+        initialSource,
+        initialGeminiConfigured
+      ).geminiConfigured
   );
-  const [aiError, setAiError] = useState<string | undefined>();
-  const [stale, setStale] = useState(staleAfterNotes);
+  const [aiError, setAiError] = useState<string | undefined>(() =>
+    resolveInitialState(
+      meetingId,
+      staleAfterNotes,
+      initialBrief,
+      initialSource,
+      initialGeminiConfigured
+    ).aiError
+  );
+  const [stale, setStale] = useState(
+    () =>
+      resolveInitialState(
+        meetingId,
+        staleAfterNotes,
+        initialBrief,
+        initialSource,
+        initialGeminiConfigured
+      ).stale
+  );
 
   useEffect(() => {
-    if (staleAfterNotes) {
+    const becameStale = staleAfterNotes && !prevStaleAfterNotes.current;
+    prevStaleAfterNotes.current = staleAfterNotes;
+
+    if (becameStale) {
+      clearCachedBrief(meetingId);
+      autoGenerateStarted.current = false;
       setBrief(null);
       setSource(undefined);
+      setAiError(undefined);
       setStale(true);
       return;
     }
+
+    if (staleAfterNotes) {
+      const cached = getCachedBrief(meetingId);
+      if (cached) {
+        setBrief(cached.brief);
+        setSource(cached.source);
+        setGeminiConfigured(cached.geminiConfigured ?? initialGeminiConfigured);
+        setAiError(cached.aiError);
+        setStale(false);
+        onBriefGenerated?.();
+      }
+      return;
+    }
+
+    const cached = getCachedBrief(meetingId);
+    if (cached) {
+      setBrief(cached.brief);
+      setSource(cached.source);
+      setGeminiConfigured(cached.geminiConfigured ?? initialGeminiConfigured);
+      setAiError(cached.aiError);
+      setStale(false);
+      return;
+    }
+
     if (initialBrief) {
+      const skipTemplateForAi =
+        initialSource === "template" && initialGeminiConfigured !== false;
+
+      if (skipTemplateForAi) {
+        return;
+      }
+
+      setCachedBrief(meetingId, {
+        brief: initialBrief,
+        source: initialSource,
+        geminiConfigured: initialGeminiConfigured,
+      });
       setBrief(initialBrief);
       setSource(initialSource);
+      setGeminiConfigured(initialGeminiConfigured);
+      setAiError(undefined);
       setStale(false);
+      return;
     }
-  }, [memoryStamp, initialBrief, initialSource, staleAfterNotes]);
+  }, [
+    meetingId,
+    memoryStamp,
+    initialBrief,
+    initialSource,
+    initialGeminiConfigured,
+    staleAfterNotes,
+  ]);
+
+  useEffect(() => {
+    if (autoGenerateStarted.current || loading || brief) {
+      return;
+    }
+
+    if (
+      !shouldAutoGenerateBrief(
+        staleAfterNotes,
+        initialGeminiConfigured,
+        initialBrief,
+        initialSource
+      )
+    ) {
+      return;
+    }
+
+    autoGenerateStarted.current = true;
+    void generateBrief();
+  }, [
+    brief,
+    initialBrief,
+    initialGeminiConfigured,
+    initialSource,
+    loading,
+    staleAfterNotes,
+  ]);
 
   async function generateBrief() {
     setLoading(true);
@@ -65,22 +265,34 @@ export function GenerateBriefSection({
       const data = await response.json();
 
       if (!response.ok) {
+        autoGenerateStarted.current = false;
         setError(data.error ?? "Could not generate brief");
-        setLoading(false);
         return;
       }
+
+      const nextAiError =
+        data.source === "template" ? (data.ai_error as string | undefined) : undefined;
+
+      setCachedBrief(meetingId, {
+        brief: data.brief,
+        source: data.source,
+        geminiConfigured: data.gemini_configured,
+        aiError: nextAiError,
+      });
 
       setBrief(data.brief);
       setSource(data.source);
       setGeminiConfigured(data.gemini_configured);
-      setAiError(data.source === "template" ? data.ai_error : undefined);
+      setAiError(nextAiError);
       setStale(false);
+      onBriefGenerated?.();
+
       trackEvent("brief_generated", { meetingId });
       if (data.triage?.status === "warning" || data.triage?.status === "reject") {
         trackEvent("triage_flagged", { meetingId, status: data.triage.status });
       }
-      router.refresh();
     } catch {
+      autoGenerateStarted.current = false;
       setError("Network error. Try again.");
     } finally {
       setLoading(false);
@@ -98,25 +310,28 @@ export function GenerateBriefSection({
       {!brief && (
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center">
           <p className="text-sm font-medium text-zinc-900">
-            Prepare for this meeting
+            {loading && !stale ? "Generating your brief" : "Prepare for this meeting"}
           </p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-zinc-600">
-            Pulls prospect memory and past notes into a scannable brief.
+            {loading && !stale
+              ? "Pulling prospect memory and past notes into a scannable brief."
+              : "Pulls prospect memory and past notes into a scannable brief."}
           </p>
-          <button
-            type="button"
-            onClick={generateBrief}
-            disabled={loading}
-            className="btn-primary mt-5 w-full sm:w-auto"
-          >
-            {loading ? (
+          {!loading && (
+            <button
+              type="button"
+              onClick={generateBrief}
+              disabled={loading}
+              className="btn-primary mt-5 w-full sm:w-auto"
+            >
+              {stale ? "Refresh brief" : "Generate brief"}
+            </button>
+          )}
+          {loading && (
+            <div className="mt-5 flex justify-center">
               <Spinner label="Generating brief…" />
-            ) : stale ? (
-              "Refresh brief"
-            ) : (
-              "Generate brief"
-            )}
-          </button>
+            </div>
+          )}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>
       )}

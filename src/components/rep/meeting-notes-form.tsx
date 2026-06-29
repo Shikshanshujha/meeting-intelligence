@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/components/shared/spinner";
 import { formatMeetingType, formatStage } from "@/lib/data/formatters";
@@ -43,7 +42,6 @@ export function MeetingNotesForm({
   isCompleted = false,
   onNotesSaved,
 }: MeetingNotesFormProps) {
-  const router = useRouter();
   const [rawNotes, setRawNotes] = useState("");
   const [transcript, setTranscript] = useState("");
   const [scheduleNext, setScheduleNext] = useState(false);
@@ -121,8 +119,6 @@ export function MeetingNotesForm({
         memory: data.memory,
         completed: true,
       });
-
-      router.refresh();
     } catch {
       setError("Network error. Try again.");
     } finally {

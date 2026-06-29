@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { generateBriefWorkflow } from "@/lib/ai/workflows/generate-brief";import { getSessionProfile } from "@/lib/auth/session";
+import { generateBriefWorkflow } from "@/lib/ai/workflows/generate-brief";
+import { getSessionProfile } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   const profile = await getSessionProfile();
@@ -20,8 +21,10 @@ export async function POST(request: Request) {
     const result = await generateBriefWorkflow(meetingId, profile.id);
 
     revalidatePath(`/rep/meetings/${meetingId}`);
+    revalidatePath("/rep");
 
-    return NextResponse.json(result);  } catch (error) {
+    return NextResponse.json(result);
+  } catch (error) {
     const message = error instanceof Error ? error.message : "Brief generation failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
